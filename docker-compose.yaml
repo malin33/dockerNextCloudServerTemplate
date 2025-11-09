@@ -1,0 +1,164 @@
+volumes:
+  nextcloud-database-volume:
+  reverse-proxy-logs: # logs, used by crowdsec and nginx-reverse-proxy
+  crowdsec-metabase-volume: # sqlite for crowdsec/dashboard
+  crowdsec-dashdata-volume:
+
+networks:
+  docker-internal-network:
+    ipam:
+        driver: default
+        config:
+          - subnet: 192.168.500.0/24
+
+services:
+  proxy:
+    container_name: proxy
+    restart: always
+    build:
+      context: .
+      dockerfile: dockerfiles/nginx-reverse-proxy.dockerfile
+    ports:
+      - 80:80
+      - 443:443
+    networks:
+      docker-internal-network:
+        ipv4_address: ${PROXY_IP}
+    environment:
+      - CLOUD_SERVER_IP=${NEXTCLOUD_IP}
+      - SERVER_NAME=${DOMAIN_NAME}
+    volumes:
+      - reverse-proxy-logs:/var/log/nginx
+      - ./certbot/www:/var/www/certbot/:ro
+      - ./certbot/conf/:/etc/nginx/ssl/:ro
+      
+  certbot:
+    container_name: certbot
+    image: certbot/certbot:latest
+    volumes:
+      - ./certbot/www/:/var/www/certbot/:rw
+      - ./certbot/conf/:/etc/letsencrypt/:rw
+    depends_on:
+      - proxy
+    networks:
+      docker-internal-network:
+        ipv4_address: ${CERTBOT_IP}
+
+  nextcloud: 
+    container_name: nextcloud
+    restart: always
+    build:
+      context: .
+      dockerfile: dockerfiles/nextcloud.dockerfile
+    environment:
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_HOST=${NEXTCLOUD_MARIADB_IP}
+      - TRUSTED_PROXIES=${PROXY_IP}
+      - NEXTCLOUD_TRUSTED_DOMAINS=${NEXTCLOUD_TRUSTED_DOMAINS}
+      - OVERWRITEHOST=${OVERWRITEHOST}
+      - OVERWRITEPROTOCOL=${OVERWRITEPROTOCOL}
+      - OVERWRITECLIURL=${OVERWRITECLIURL}
+      - APACHE_DISABLE_REWRITE_IP=${APACHE_DISABLE_REWRITE_IP}
+      - PHP_UPLOAD_LIMIT=${PHP_UPLOAD_LIMIT}
+      - PHP_MEMORY_LIMIT=${PHP_MEMORY_LIMIT}
+      - PHP_OPCACHE_MEMORY_CONSUMPTION=${PHP_OPCACHE_MEMORY_CONSUMPTION}
+      - APACHE_BODY_LIMIT=${APACHE_BODY_LIMIT}
+      - REDIS_HOST=${REDIS_IP}
+    depends_on:
+      - nextcloud-mariadb
+      - redis
+    networks:
+      docker-internal-network:
+        ipv4_address: ${NEXTCLOUD_IP}
+    volumes:
+      - ./nextcloud/html:/var/www/html
+      - ./nextcloud/config:/var/www/html/config
+      - ./nextcloud/data:/var/www/html/data
+      - ./nextcloud/custom_apps:/var/www/html/custom_apps
+      - ./nextcloud/theme:/var/www/html/themes
+
+  nextcloud-mariadb:
+    container_name: nextcloud-mariadb
+    restart: always
+    build:
+      context: .
+      dockerfile: dockerfiles/nextcloud-mariadatabase.dockerfile
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+    networks:
+      docker-internal-network:
+        ipv4_address: ${NEXTCLOUD_MARIADB_IP}
+    volumes:
+      - nextcloud-database-volume:/var/lib/mysql
+      - ./nextcloud/mariadb_dumps:/mnt/data_dump
+
+  redis:
+    container_name: redis
+    restart: always
+    build:
+      context: .
+      dockerfile: dockerfiles/redis.dockerfile
+    networks:
+      docker-internal-network:
+        ipv4_address: ${REDIS_IP}
+  
+  coturn:
+    container_name: coturn
+    restart: always
+    build: 
+      context: .
+      dockerfile: dockerfiles/coturn.dockerfile
+    networks:
+      docker-internal-network:
+        ipv4_address: ${COTURN_IP}
+    ports:
+      - ${COTURN_PORT}:${COTURN_PORT}
+    volumes:
+      - ./coturnserver/turnserver.conf:/etc/coturn/turnserver.conf
+
+  crowdsec:
+    container_name: crowdsec
+    restart: always
+    build:
+      context: .
+      dockerfile: dockerfiles/crowdsec.dockerfile
+    environment:
+      COLLECTIONS: "crowdsecurity/nginx crowdsecurity/nextcloud"
+      GID: "${GID-1000}"
+    depends_on:
+      - proxy
+    ports:
+      - ${CROWDSEC_API_PORT}:${CROWDSEC_API_PORT}
+    networks:
+      docker-internal-network:
+        ipv4_address: ${CROWDSEC_IP}
+    volumes:
+      - ./crowdsec/acquis.yaml:/etc/crowdsec/acquis.yaml
+      - ./crowdsec/crowdsec-config-volume:/etc/crowdsec/
+      - crowdsec-metabase-volume:/var/lib/crowdsec/data/
+      - reverse-proxy-logs:/var/log/nginx
+
+  crowdsec-dash:
+    container_name: crowdsec-dash
+    restart: always
+    build:
+      context: .
+      dockerfile: dockerfiles/crowdsec_dash.dockerfile
+    environment:
+      MB_DB_FILE: /data/metabase.db
+      MGID: "${GID-1000}"
+    depends_on:
+      - crowdsec
+    ports:
+      - ${CROWDSEC_DASH_PORT}:${CROWDSEC_DASH_PORT}
+    networks:
+      docker-internal-network:
+        ipv4_address: ${CROWDSEC_DASH_IP}
+    volumes:
+      - crowdsec-metabase-volume:/metabase-data/
+      - crowdsec-dashdata-volume:/data/

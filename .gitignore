@@ -1,0 +1,10 @@
+nextcloud/html
+nextcloud/config
+nextcloud/data
+nextcloud/custom_apps
+nextcloud/theme
+
+certbot/conf
+certbot/www
+
+crowdsec/crowdsec-config-volume
