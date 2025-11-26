@@ -9,7 +9,7 @@ networks:
     ipam:
         driver: default
         config:
-          - subnet: 192.168.500.0/24
+          - subnet: ${DOCKER_SUBNET}
 
 services:
   proxy:
@@ -25,8 +25,8 @@ services:
       docker-internal-network:
         ipv4_address: ${PROXY_IP}
     environment:
-      - CLOUD_SERVER_IP=${NEXTCLOUD_IP}
-      - SERVER_NAME=${DOMAIN_NAME}
+      - NEXTCLOUD_IP=${NEXTCLOUD_IP}
+      - DOMAIN_NAME=${DOMAIN_NAME}
     volumes:
       - reverse-proxy-logs:/var/log/nginx
       - ./certbot/www:/var/www/certbot/:ro
