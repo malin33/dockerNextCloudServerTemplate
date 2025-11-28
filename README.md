@@ -39,20 +39,23 @@ crowdSed security engine. Communitcates via port 8080 to the firewall bouncer on
 Simple dashboard for metrics from the security engine.
 
 # Deploying
-## Host prep
-  - install docker
+## HTTP
+### Host prep
+  - install docker <br>
   optional:
      - install pv (used by backup script)
      - set timezone sudo timedatectl set-timezone Europe/Stockholm
      - set locale sudo dpkg-reconfigure
-## Docker prep
+### Docker prep
   - docker compose down
   - total clean:
     - docker volume prune -a
     - docker system prune -a 
   - clean instance ./cleanInstanse.sh (removes nexcloud folder + certbot)
   - configure .env, set passwords for db and correct ip's
-## Docker deploy
+### Docker deploy
   - docker compose up --build -d 
-## Nextcloud
+### Nextcloud
   - access locally and set admin user
+## HTTPS
+
