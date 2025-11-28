@@ -1,27 +1,7 @@
 
 
 Template for self hosted nextcloud instance using docker and crowdsec as a firewall. Use as a starting point and modify accordingly.
-
-## Containers
-Breif overview:
-# nginx
-Reverse proxy and https handling.
-# certbot
-Generates the ssl certs for https connection.
-# nextcloud
-Cloud server.
-# mariaDb
-Main database used by the nextcloud container.
-# redis
-Memory cache for database.  
-# coTurn
-TURN server for nextcloud video calls. 
-# crowdSec
-crowdSed security engine. Communitcates via port 8080 to the firewall bouncer on the local host. 
-# crowdSecDash
-Simple dashboard for metrics from the security engine.
-
-## Structure  
+# Structure  
                                                                            
                                      |--------------------------------   Docker network  --------------------------------|
                           [ HOST ]                                      192.168.XXX.0/24
@@ -38,7 +18,27 @@ Simple dashboard for metrics from the security engine.
                                                         --------------
 
 
-### Deploying
+
+# Containers
+Breif overview:
+### nginx
+Reverse proxy and https handling.
+### certbot
+Generates the ssl certs for https connection.
+### nextcloud
+Cloud server.
+### mariaDb
+Main database used by the nextcloud container.
+### redis
+Memory cache for database.  
+### coTurn
+TURN server for nextcloud video calls. 
+### crowdSec
+crowdSed security engine. Communitcates via port 8080 to the firewall bouncer on the local host. 
+### crowdSecDash
+Simple dashboard for metrics from the security engine.
+
+# Deploying
 ## Host prep
   - install docker
   optional:
